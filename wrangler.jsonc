@@ -1,0 +1,38 @@
+{
+  "name": "goldenepics-campaign-commerce",
+  "main": "worker/index.mjs",
+  "compatibility_date": "2026-05-15",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "workers_dev": true,
+  "build": {
+    "command": "node worker/build.mjs"
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "COMMERCE",
+        "class_name": "CampaignCommerce"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "CampaignCommerce"
+      ]
+    }
+  ],
+  "ai": {
+    "binding": "AI"
+  },
+  "vars": {
+    "AI_DAILY_MAX_CALLS": "10",
+    "APP_ORIGIN": "https://goldenepics-campaign-commerce.wispy-silence-1cb0.workers.dev"
+  },
+  "observability": {
+    "enabled": false
+  }
+}
