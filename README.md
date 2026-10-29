@@ -12,7 +12,7 @@ Run `npm ci`, `npm run build:worker`, then `npm test`. `wrangler.jsonc` defines 
 
 Sandbox provisioning uses an operator-only, one-time setup flow. An operator temporarily sets a high-entropy `SETUP_TOKEN` secret and a short `SETUP_EXPIRES` epoch-millisecond expiry. `/setup` accepts the token and sandbox credentials over HTTPS, verifies PayPal authentication, encrypts the credentials with AES-GCM, and permanently closes setup after successful configuration. Remove the setup bindings afterward. The setup flow remains closed while those bindings are absent. Credentials never appear in app responses, source or exports. Worker request logging is disabled.
 
-The hosted proposal workflow has been verified with a real Workers AI request. The optional named StudioCommerceBridge service binding supports account-bound orders in the original private Studio; public browser sessions remain separate. PayPal sandbox credentials are installed and creation of a sandbox checkout is verified. Buyer approval, capture and delivery are still pending; see `docs/CURRENT_STATE.md`.
+The hosted proposal workflow has been verified with a real Workers AI request. The optional named StudioCommerceBridge service binding supports account-bound orders in the original private Studio; public browser sessions remain separate. A real sandbox buyer approval, verified payment, AI package generation and Markdown download have now passed in the hosted app. The delivered order and download remained available after page reload. See [the sandbox acceptance record](docs/SANDBOX_ACCEPTANCE.md) for the verified scope; older pending notes in `docs/CURRENT_STATE.md` are historical.
 
 ## Run locally
 
