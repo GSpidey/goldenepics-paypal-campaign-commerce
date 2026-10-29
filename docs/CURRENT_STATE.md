@@ -13,3 +13,11 @@ The PayPal plugin connection was confirmed. Secure browser sign-in and email ver
 Next: restore PayPal Developer sign-in, install existing sandbox merchant credentials through the one-time encrypted setup, and use a separate sandbox buyer to complete one real sandbox checkout and delivery. Check duplicate capture, deployed restart recovery and cross-session isolation. Record the public demo and verify the official PayPal event requirements and registration before final submission. The entry is not yet submission-ready.
 
 Preserve the private Studio and Qloo separation. All payment requests are sandbox-only.
+
+## Sandbox connection — October 29, 2026 UTC
+
+Fresh secure PayPal Developer sign-in succeeded. The existing sandbox Default Application credentials were transferred directly between the browser credential-copy controls and the authorized app setup form, without printing the secret. The server verified sandbox OAuth and stored the configuration encrypted using its existing CREDENTIAL_KEY. Both temporary SETUP_TOKEN and SETUP_EXPIRES bindings were removed after setup succeeded. Preserve CREDENTIAL_KEY and durable configuration.
+
+The original saved RiseQuest proposal remains available. Checkout created an actual PayPal sandbox order and redirected to PayPal's sandbox buyer sign-in. Buyer approval, capture and delivery are still pending; the login must use a separate sandbox buyer. No live payment or payout occurred.
+
+The secure sandbox buyer sign-in attempt was submitted but PayPal reported incorrect information. Buyer approval and capture remain unverified. Continue through the saved checkout with the separate personal sandbox test account; do not use the merchant or live login. The developer buyer-account page remains available in the browser.
