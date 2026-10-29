@@ -30,7 +30,8 @@
   },
   "vars": {
     "AI_DAILY_MAX_CALLS": "10",
-    "APP_ORIGIN": "https://goldenepics-campaign-commerce.wispy-silence-1cb0.workers.dev"
+    "APP_ORIGIN": "https://goldenepics-campaign-commerce.wispy-silence-1cb0.workers.dev",
+    "STUDIO_ORIGIN": "https://studio.goldenepics.com"
   },
   "observability": {
     "enabled": false

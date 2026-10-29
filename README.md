@@ -12,7 +12,7 @@ Run `npm ci`, `npm run build:worker`, then `npm test`. `wrangler.jsonc` defines 
 
 Sandbox provisioning uses an operator-only, one-time setup flow. An operator temporarily sets a high-entropy `SETUP_TOKEN` secret and a short `SETUP_EXPIRES` epoch-millisecond expiry. `/setup` accepts the token and sandbox credentials over HTTPS, verifies PayPal authentication, encrypts the credentials with AES-GCM, and permanently closes setup after successful configuration. Remove the setup bindings afterward. The setup flow remains closed while those bindings are absent. Credentials never appear in app responses, source or exports. Worker request logging is disabled.
 
-The hosted proposal workflow has been verified with a real Workers AI request. PayPal sandbox credential installation and an actual buyer checkout are still pending; see `docs/CURRENT_STATE.md`.
+The hosted proposal workflow has been verified with a real Workers AI request. The optional named StudioCommerceBridge service binding supports account-bound orders in the original private Studio; public browser sessions remain separate. PayPal sandbox credentials are installed and creation of a sandbox checkout is verified. Buyer approval, capture and delivery are still pending; see `docs/CURRENT_STATE.md`.
 
 ## Run locally
 
@@ -56,3 +56,4 @@ Run one Node process behind an HTTPS reverse proxy on a host with a persistent d
 See [docs/CURRENT_STATE.md](docs/CURRENT_STATE.md) and [docs/DEMO_CHECKLIST.md](docs/DEMO_CHECKLIST.md) for remaining verification.
 
 MIT license. Built with Node.js, SQLite, JavaScript, HTML/CSS, PayPal Orders v2 Sandbox and a configurable text-generation API.
+

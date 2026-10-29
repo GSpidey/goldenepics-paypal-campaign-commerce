@@ -1,5 +1,5 @@
-import { DurableObject } from 'cloudflare:workers';
-import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
+import { DurableObject, WorkerEntrypoint } from 'cloudflare:workers';
+import { randomBytes, createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { PayPal, ProviderError } from '../lib/paypal.mjs';
 import { CreativeAI } from '../lib/ai.mjs';
 import { Commerce, PACKAGES } from '../lib/commerce.mjs';
@@ -43,8 +43,19 @@ export class CampaignCommerce extends DurableObject {
     } catch { return json({message:'Check the sandbox credentials and try again.'},503); }
     finally { this.store.unlock('setup'); }
   }
-  async fetch(request) {
-    const url=new URL(request.url),origin=this.env.APP_ORIGIN;
+  async studioRequest(input) {
+    const {actor,method,path,body}=input||{};
+    const allowed=method==='GET' && (path==='/api/workspace'||/^\/api\/orders\/[a-f0-9-]{36}\/download$/.test(path)) || method==='POST' && (path==='/api/orders'||/^\/api\/orders\/[a-f0-9-]{36}\/(proposal|checkout|capture|fulfill|reconcileCreate)$/.test(path));
+    if(typeof actor!=='string'||!actor.length||actor.length>200||!allowed)return json({message:'This action is unavailable.'},400);
+    const origin=this.env.STUDIO_ORIGIN;
+    if(!origin||!this.env.CREDENTIAL_KEY)return json({message:'Studio checkout is awaiting connection.'},503);
+    // Only the named service entrypoint can supply this identity. HTTP headers never select it.
+    const session=createHmac('sha256',this.env.CREDENTIAL_KEY).update('studio:'+actor).digest('hex');
+    return this.handle(new Request(origin+path,{method,headers:{origin,'content-type':'application/json',cookie:'ge_session='+session},...(method==='POST'?{body:JSON.stringify(body??{})}:{})}),true);
+  }
+  async fetch(request) { return this.handle(request,false); }
+  async handle(request,studio=false) {
+    const url=new URL(request.url),origin=studio?this.env.STUDIO_ORIGIN:this.env.APP_ORIGIN;
     const headers={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'same-origin','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"};
     const send=(data,status=200)=>json(data,status,headers);
     const publicOrder=({owner,...order})=>order;
@@ -68,7 +79,7 @@ export class CampaignCommerce extends DurableObject {
         const result=await this.env.AI.run(model,{messages:input.messages,max_tokens:input.max_tokens,temperature:input.temperature});
         return Response.json({choices:[{message:{content:result.response}}],usage:result.usage});
       });
-      const commerce=new Commerce({store:this.store,paypal:new PayPal(config,safeFetch),ai,origin,aiLimit:Math.min(20,Math.max(0,Number(this.env.AI_DAILY_MAX_CALLS)||0))});
+      const commerce=new Commerce({store:this.store,paypal:new PayPal(config,safeFetch),ai,origin,returnPath:studio?'/commerce':'/',aiLimit:Math.min(20,Math.max(0,Number(this.env.AI_DAILY_MAX_CALLS)||0))});
       if(request.method==='GET'&&url.pathname==='/api/workspace')return send({packages:PACKAGES,orders:this.store.list(owner).map(publicOrder),connections:{paypal:!!config.PAYPAL_CLIENT_ID,ai:!!this.env.AI},environment:'sandbox'});
       const download=url.pathname.match(/^\/api\/orders\/([a-f0-9-]{36})\/download$/);
       if(request.method==='GET'&&download){const o=commerce.owned(download[1],owner);if(!o.receipt||!o.delivery)return send({message:'Your package will be available after payment confirmation and production.'},409);return new Response('# '+o.brief.product+'\n\nSandbox order: '+o.id+'\n\n'+o.delivery.text+'\n\nModel: '+o.delivery.model+'\nReview all claims and destinations before publication.',{headers:{...headers,'Content-Type':'text/markdown; charset=utf-8','Content-Disposition':'attachment; filename="GoldenEpics-Campaign-'+o.id+'.md"'}});}
@@ -83,4 +94,8 @@ export class CampaignCommerce extends DurableObject {
     } catch(e){return send({message:e instanceof ProviderError?e.message:'This step could not finish. Your saved orders remain available.'},e.kind==='not-found'?404:e.kind==='input'?400:e.kind==='busy'?409:503);}
   }
 }
+export class StudioCommerceBridge extends WorkerEntrypoint {
+  async run(input) { return this.env.COMMERCE.get(this.env.COMMERCE.idFromName('campaign-commerce-v1')).studioRequest(input); }
+}
 export default {fetch(request,env){return env.COMMERCE.get(env.COMMERCE.idFromName('campaign-commerce-v1')).fetch(request);}};
+

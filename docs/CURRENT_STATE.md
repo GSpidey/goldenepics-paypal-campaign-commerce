@@ -1,3 +1,13 @@
+# Studio service integration — October 28, 2026 (America/Vancouver)
+
+The existing commerce Worker now exposes a named StudioCommerceBridge service entrypoint. Only an authorized Cloudflare service binding can supply the authenticated Studio actor. The durable store derives a stable HMAC session from that actor and the existing encryption secret. Public HTTP cannot select an actor. Existing browser-session orders and the competition app remain intact.
+
+Studio orders return to the configured STUDIO_ORIGIN /commerce page. All package pricing, sandbox endpoints, capture verification, idempotency and recovery rules are retained. No merchant secret is copied into Studio. Preserve CREDENTIAL_KEY; changing it both prevents configuration decryption and changes Studio order identity mappings.
+
+All 15 tests pass, including actual Workers service-binding tests for per-actor isolation, protected downloads, fixed server prices, duplicate capture, restart persistence and separate competition/Studio return paths. Worker deployment f9cdb0d3-936d-4206-bb23-ded13cfce7f7 is live. Native Studio acceptance observed a real Workers AI proposal and one real USD 9.00 PayPal sandbox order. Buyer approval/capture and delivery remain unverified; no live billing or creator payouts have run. Test identities are disabled after acceptance and the sandbox order is retained as evidence.
+
+Earlier checkpoints follow.
+
 # Current state — 2026-10-28
 
 The hosted campaign workspace is deployed at https://goldenepics-campaign-commerce.wispy-silence-1cb0.workers.dev/ . Cloudflare account 7349e3ce28f93aafff1618088bf5afac, Worker goldenepics-campaign-commerce, durable class CampaignCommerce, named instance campaign-commerce-v1. The Cloudflare API accepted the upload and enabled its workers.dev route; browser verification loaded the live app.
@@ -21,3 +31,4 @@ Fresh secure PayPal Developer sign-in succeeded. The existing sandbox Default Ap
 The original saved RiseQuest proposal remains available. Checkout created an actual PayPal sandbox order and redirected to PayPal's sandbox buyer sign-in. Buyer approval, capture and delivery are still pending; the login must use a separate sandbox buyer. No live payment or payout occurred.
 
 The secure sandbox buyer sign-in attempt was submitted but PayPal reported incorrect information. Buyer approval and capture remain unverified. Continue through the saved checkout with the separate personal sandbox test account; do not use the merchant or live login. The developer buyer-account page remains available in the browser.
+

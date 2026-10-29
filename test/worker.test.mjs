@@ -14,7 +14,7 @@ test('Workers runtime: sealed setup, sandbox checkout, delivery, isolation and d
  const files=['worker/index.mjs','worker/store.mjs','worker/assets.generated.mjs','lib/commerce.mjs','lib/paypal.mjs','lib/ai.mjs'];
  const modules=await Promise.all(files.map(async path=>({type:'ESModule',path,contents:await readFile(new URL('../'+path,import.meta.url),'utf8')})));
  const completed=()=>({id:'SANDBOX123',status:'COMPLETED',purchase_units:[{custom_id:created.purchase_units[0].custom_id,payments:{captures:[{id:'CAPTURE123',status:'COMPLETED',amount:{currency_code:'USD',value:'9.00'}}]}}]});
- const options={durableObjectsPersist:dir,workers:[{name:'commerce',compatibilityDate:'2026-05-15',compatibilityFlags:['nodejs_compat'],modules,bindings:{APP_ORIGIN:origin,AI_DAILY_MAX_CALLS:'4',SETUP_TOKEN:fixture.token,SETUP_EXPIRES:String(Date.now()+3600000),CREDENTIAL_KEY:Buffer.alloc(32,7).toString('base64')},durableObjects:{COMMERCE:{className:'CampaignCommerce',useSQLite:true}},serviceBindings:{AI:{name:'model',entrypoint:'Model'}},outboundService:async req=>{
+ const options={durableObjectsPersist:dir,workers:[{name:'commerce',compatibilityDate:'2026-05-15',compatibilityFlags:['nodejs_compat'],modules,bindings:{APP_ORIGIN:origin,STUDIO_ORIGIN:'https://studio.example',AI_DAILY_MAX_CALLS:'4',SETUP_TOKEN:fixture.token,SETUP_EXPIRES:String(Date.now()+3600000),CREDENTIAL_KEY:Buffer.alloc(32,7).toString('base64')},durableObjects:{COMMERCE:{className:'CampaignCommerce',useSQLite:true}},serviceBindings:{AI:{name:'model',entrypoint:'Model'}},outboundService:async req=>{
   assert.equal(new URL(req.url).origin,'https://api-m.sandbox.paypal.com');
   if(redirect)return new Response(null,{status:302,headers:{location:'https://untrusted.example'}});
   if(req.url.endsWith('/token'))return Response.json({access_token:'fixture-token-only',expires_in:3600});
@@ -22,7 +22,9 @@ test('Workers runtime: sealed setup, sandbox checkout, delivery, isolation and d
   if(req.method==='POST'){created=await req.json();return Response.json({id:'SANDBOX123',links:[{rel:'payer-action',href:'https://www.sandbox.paypal.com/checkoutnow?token=SANDBOX123'}]});}
   return Response.json(captures?completed():{id:'SANDBOX123',status:'APPROVED',purchase_units:created.purchase_units});
  }},{name:'model',compatibilityDate:'2026-05-15',modules:[{type:'ESModule',path:'model.mjs',contents:"import {WorkerEntrypoint} from 'cloudflare:workers';export class Model extends WorkerEntrypoint{async run(){return {response:'# Campaign direction\\n\\n'+ 'Useful campaign copy. '.repeat(20)};}} export default {fetch(){return new Response('fixture');}};"}]}]};
+ options.workers.push({name:'studio',compatibilityDate:'2026-05-15',modules:[{type:'ESModule',path:'studio.mjs',contents:`export default {async fetch(request,env){return env.BRIDGE.run(await request.json());}}`}],serviceBindings:{BRIDGE:{name:'commerce',entrypoint:'StudioCommerceBridge'}}});
  mf=new Miniflare(options);
+ const bridge=async(actor,path,body)=>{const service=await mf.getWorker('studio');return service.fetch('https://internal.test',{method:'POST',body:JSON.stringify({actor,path,method:body?'POST':'GET',body})});};
  const call=(path,body,cookie)=>mf.dispatchFetch(origin+path,{...(body?{method:'POST',body:JSON.stringify(body)}:{}),headers:{origin,'content-type':'application/json',...(cookie?{cookie}:{})}});
  assert.equal((await call('/api/setup',{...fixture,token:'wrong'})).status,403);
  redirect=true; assert.equal((await call('/api/setup',fixture)).status,503);redirect=false;
@@ -43,8 +45,29 @@ test('Workers runtime: sealed setup, sandbox checkout, delivery, isolation and d
  assert.equal((await call('/api/orders/'+order.id+'/download',undefined,cookie)).status,200);
  assert.equal((await(await call('/api/workspace')).json()).orders.length,0);
  assert.equal((await call('/api/orders/'+order.id+'/download')).status,404);
+ assert.equal(created.payment_source.paypal.experience_context.return_url,origin+'/?order='+order.id);
+ // The service binding receives server identity; public cookies and HTTP headers cannot choose it.
+ const native=await bridge('customer-a','/api/workspace');assert.equal(native.headers.get('set-cookie'),null);assert.equal((await native.json()).orders.length,0);
+ assert.equal((await bridge('customer-a','/api/setup',fixture)).status,400);
+ assert.equal((await bridge('', '/api/workspace')).status,400);
+ const nativeOrder=await(await bridge('customer-a','/api/orders',{...body,owner:'customer-b',amount:'0.01'})).json();
+ assert.equal(nativeOrder.amount,'9.00');assert.equal(nativeOrder.owner,undefined);
+ assert.equal((await bridge('customer-b','/api/orders/'+nativeOrder.id+'/proposal',{})).status,404);
+ assert.equal((await bridge('customer-a','/api/orders/'+nativeOrder.id+'/proposal',{})).status,200);
+ assert.equal((await bridge('customer-a','/api/orders/'+nativeOrder.id+'/checkout',{})).status,200);
+ assert.equal(created.payment_source.paypal.experience_context.return_url,'https://studio.example/commerce?order='+nativeOrder.id);
+ captures=0;
+ assert.equal((await bridge('customer-a','/api/orders/'+nativeOrder.id+'/capture',{})).status,200);
+ assert.equal((await bridge('customer-a','/api/orders/'+nativeOrder.id+'/capture',{})).status,200);assert.equal(captures,1);
+ assert.equal((await bridge('customer-a','/api/orders/'+nativeOrder.id+'/fulfill',{})).status,200);
+ assert.equal((await bridge('customer-b','/api/orders/'+nativeOrder.id+'/download')).status,404);
+ assert.equal((await(await bridge('customer-b','/api/workspace')).json()).orders.length,0);
+ assert.equal((await call('/api/orders/'+nativeOrder.id+'/download',undefined,cookie)).status,404);
+ const spoof=await mf.dispatchFetch(origin+'/api/workspace',{headers:{'x-studio-actor':'customer-a'}});assert.equal((await spoof.json()).orders.length,0);
  await mf.dispose();mf=new Miniflare(options);
+ assert.equal((await(await bridge('customer-a','/api/workspace')).json()).orders[0].state,'delivered');
  const restored=await(await call('/api/workspace',undefined,cookie)).json();assert.equal(restored.orders[0].state,'delivered');assert.equal(restored.orders[0].receipt.captureId,'CAPTURE123');assert.equal(restored.connections.paypal,true);
  assert.equal((await call('/api/setup',fixture)).status,410);
  assert.equal((await mf.dispatchFetch(origin+'/api/orders',{method:'POST',headers:{origin:'https://untrusted.example','content-type':'application/json'},body:JSON.stringify(body)})).status,403);
 });
+
