@@ -1,5 +1,5 @@
 # GoldenEpics Studio — PayPal submission copy
-Updated October 29, 2026. Prepared for the PayPal AI Hackathon; final submission pending public YouTube URL and required entrant answers.
+Submitted to the PayPal AI Hackathon on October 29, 2026. Live readback confirmed the published project and recorded entry.
 
 ## Title
 GoldenEpics Studio
@@ -38,7 +38,8 @@ The most useful AI service connects creative scope, price, payment and delivery.
 ## Links
 - Hosted app: https://goldenepics-campaign-commerce.wispy-silence-1cb0.workers.dev/
 - Public source: https://github.com/GSpidey/goldenepics-paypal-campaign-commerce
-- Public YouTube demo: PENDING — approved captioned 1:47 export is ready; upload interrupted when YouTube signed the browser out.
+- Public YouTube demo: https://youtu.be/e7TyakY0wlc
+- Devpost project: https://devpost.com/software/goldenepics-studio
 
 ## Technical submission answers
 Main technology requirement: PayPal REST Orders v2 Sandbox creates the checkout and verifies the completed capture against the server-owned campaign order, amount and currency. Cloudflare Workers AI / Meta Llama 3.3 70B Instruct generates the proposal and purchased creative package. SQLite-backed Durable Objects retain the campaign and its delivery.
