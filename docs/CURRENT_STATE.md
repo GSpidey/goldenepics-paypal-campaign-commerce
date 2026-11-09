@@ -1,3 +1,7 @@
+# Current: 0.3.1 checkout-return improvement deployed — November 9, 2026
+
+Read RETURN_CHECKOUT_2026-11-09.md. The original submitted 1:47 video was already attached. All 18 regressions and native build pass. Automatic return verification and browser safety checks are complete; six bindings/settings/namespace and inherited encryption secret preserved. No new real payment or AI generation was needed. Official mutation cutoff is November 12, 2026, 20:00 UTC; freeze this repository/demo/video afterward through the announced December 21 winners. Older pending sandbox statements below are historical; SANDBOX_ACCEPTANCE.md remains the prior real-buyer evidence.
+
 # Studio service integration — October 28, 2026 (America/Vancouver)
 
 The existing commerce Worker now exposes a named StudioCommerceBridge service entrypoint. Only an authorized Cloudflare service binding can supply the authenticated Studio actor. The durable store derives a stable HMAC session from that actor and the existing encryption secret. Public HTTP cannot select an actor. Existing browser-session orders and the competition app remain intact.
