@@ -1,5 +1,31 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {Store}from '../lib/store.mjs';import {Commerce}from '../lib/commerce.mjs';import {PayPal,ProviderError,verifyCapture,approvalLink}from '../lib/paypal.mjs';import {makeServer}from '../server.mjs';import {mkdtempSync,rmSync}from 'node:fs';import {tmpdir}from 'node:os';import {join}from 'node:path';
 const brief={product:'Example',description:'A useful planner',audience:'Independent creators',goal:'Try a plan'};
+import {resumeCheckoutReturn} from '../public/checkout-return.js';
+test('return from checkout uses saved server payment evidence and never the approval URL parameters',async t=>{
+ const f=setup(t),o=f.app.create('owner',{brief,packageId:'starter'});await f.app.proposal(o.id,'owner');await f.app.checkout(o.id,'owner');
+ let confirmations=0;const confirm=id=>{confirmations++;return f.app.capture(id,'owner');};
+ const result=await resumeCheckoutReturn('https://example.test/?order='+o.id+'&token=FORGED&PayerID=FORGED&paid=true',f.store.list('owner'),confirm);
+ assert.equal(result.kind,'paid');assert.equal(result.orderId,o.id);assert.equal(confirmations,1);assert.equal(f.counts().captured,1);assert.equal(f.counts().generated,1);
+ assert.equal((await resumeCheckoutReturn('https://example.test/?order='+o.id,f.store.list('owner'),confirm)).kind,'paid');assert.equal(confirmations,1);assert.equal(f.counts().captured,1);
+});
+test('cancelled, missing, foreign and ambiguous checkout returns cannot request payment',async t=>{
+ const f=setup(t),o=f.app.create('owner',{brief,packageId:'starter'});await f.app.proposal(o.id,'owner');await f.app.checkout(o.id,'owner');const orders=f.store.list('owner');
+ const never=()=>assert.fail('This return must not request a payment check');
+ assert.equal((await resumeCheckoutReturn('https://example.test/?order='+o.id+'&cancelled=1',orders,never)).kind,'paused');
+ assert.equal((await resumeCheckoutReturn('https://example.test/?order='+o.id,[],never)).kind,'unavailable');
+ assert.equal((await resumeCheckoutReturn('https://example.test/?order=bad',orders,never)).kind,'unavailable');
+ assert.equal((await resumeCheckoutReturn('https://example.test/?order='+o.id+'&order='+o.id,orders,never)).kind,'unavailable');
+ assert.equal(await resumeCheckoutReturn('https://example.test/?token=FORGED&paid=true',orders,never),null);
+ assert.equal(f.counts().captured,0);assert.equal(f.app.owned(o.id,'owner').receipt,undefined);
+});
+test('return confirmation preserves uncertain capture recovery and refuses a mismatched approved amount',async t=>{
+ const f=setup(t),o=f.app.create('owner',{brief,packageId:'starter'});await f.app.proposal(o.id,'owner');await f.app.checkout(o.id,'owner');const url='https://example.test/?order='+o.id,confirm=id=>f.app.capture(id,'owner');
+ const originalGet=f.paypal.get;f.paypal.get=async()=>({id:'PAYPAL123',status:'APPROVED',purchase_units:[{custom_id:o.id,amount:{value:'0.01',currency_code:'USD'}}]});
+ assert.equal((await resumeCheckoutReturn(url,f.store.list('owner'),confirm)).kind,'pending');assert.equal(f.counts().captured,0);assert.equal(f.app.owned(o.id,'owner').receipt,undefined);
+ f.paypal.get=originalGet;const originalCapture=f.paypal.capture;f.paypal.capture=async saved=>{await originalCapture(saved);throw new ProviderError('Check this saved payment again.','uncertain');};
+ assert.equal((await resumeCheckoutReturn(url,f.store.list('owner'),confirm)).kind,'pending');assert.equal(f.counts().captured,1);assert.equal(f.app.owned(o.id,'owner').receipt,undefined);
+ assert.equal((await resumeCheckoutReturn(url,f.store.list('owner'),confirm)).kind,'paid');assert.equal(f.counts().captured,1);assert.equal(f.counts().generated,1);
+});
 function setup(t,overrides={}){const store=new Store();t.after(()=>store.close());let captured=0,generated=0;let current;const completed=o=>({id:o.paypalId,status:'COMPLETED',purchase_units:[{custom_id:o.id,payments:{captures:[{id:'CAPTURE123',status:'COMPLETED',amount:{currency_code:o.currency,value:o.amount}}]}}]});const paypal={async create(o){current={...o,paypalId:'PAYPAL123'};return{id:'PAYPAL123',links:[{rel:'payer-action',href:'https://www.sandbox.paypal.com/checkoutnow?token=PAYPAL123'}]};},async get(){return captured?completed(current):{id:'PAYPAL123',status:'APPROVED',purchase_units:[{custom_id:current.id,amount:{value:current.amount,currency_code:current.currency}}]};},async capture(o){captured++;return completed(o);}};const ai={async generate(b,stage){generated++;return{text:stage+' content '.repeat(20),model:'fixture-only'};}};const app=new Commerce({store,paypal,ai,origin:'https://example.test',...overrides});return{app,store,paypal,ai,counts:()=>({captured,generated}),completed};}
 async function paid(f){let o=f.app.create('owner',{brief,packageId:'starter'});await f.app.proposal(o.id,'owner');await f.app.checkout(o.id,'owner');return f.app.capture(o.id,'owner');}
 test('price is server owned and forged package or incomplete brief is rejected',t=>{const f=setup(t);const o=f.app.create('owner',{brief,packageId:'starter',amount:'0.01'});assert.equal(o.amount,'9.00');assert.throws(()=>f.app.create('owner',{brief,packageId:'other'}));assert.throws(()=>f.app.create('owner',{brief:{product:'x'},packageId:'starter'}));});

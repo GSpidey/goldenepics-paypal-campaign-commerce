@@ -4,7 +4,7 @@ import { PayPal, ProviderError } from '../lib/paypal.mjs';
 import { CreativeAI } from '../lib/ai.mjs';
 import { Commerce, PACKAGES } from '../lib/commerce.mjs';
 import { DurableStore } from './store.mjs';
-import {index,app,style,setup} from './assets.generated.mjs';
+import {index,app,checkoutReturn,style,setup} from './assets.generated.mjs';
 
 const safeFetch = async (url, options) => {
   const response = await fetch(url, {...options, redirect:'manual'});
@@ -66,8 +66,8 @@ export class CampaignCommerce extends DurableObject {
         return new Response(setup,{headers:{...headers,'Content-Type':'text/html; charset=utf-8'}});
       }
       if(url.pathname==='/setup.js' && request.method==='GET')return new Response("document.querySelector('form').addEventListener('submit',async e=>{e.preventDefault();const f=new FormData(e.target);const r=await fetch('/api/setup',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(Object.fromEntries(f))});const d=await r.json();document.querySelector('output').textContent=d.message;if(r.ok)e.target.reset();});",{headers:{...headers,'Content-Type':'text/javascript'}});
-      if(request.method==='GET'&&['/','/app.js','/style.css'].includes(url.pathname)){
-        const [body,type]=url.pathname==='/'?[index,'text/html']:url.pathname==='/app.js'?[app,'text/javascript']:[style,'text/css'];
+      if(request.method==='GET'&&['/','/app.js','/checkout-return.js','/style.css'].includes(url.pathname)){
+        const [body,type]=url.pathname==='/'?[index,'text/html']:url.pathname==='/app.js'?[app,'text/javascript']:url.pathname==='/checkout-return.js'?[checkoutReturn,'text/javascript']:[style,'text/css'];
         return new Response(body,{headers:{...headers,'Content-Type':type+'; charset=utf-8'}});
       }
       let session=request.headers.get('cookie')?.match(/(?:^|; )ge_session=([a-f0-9]{64})(?:;|$)/)?.[1];

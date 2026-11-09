@@ -39,9 +39,15 @@ Keep .env out of source control. No provider key reaches the browser.
 
 A proposal followed by three hooks, a 30-second script, three captions, a five-card carousel outline and a visual production brief. Deliverables are editable copy downloaded as Markdown, ready for a creative collaborator to develop.
 
+## Submission and demo
+
+[Devpost entry](https://devpost.com/software/goldenepics-studio) · [1:47 demo video](https://www.youtube.com/watch?v=e7TyakY0wlc)
+
 ## Payment and recovery
 
 The server validates order ID, internal campaign ID, amount, currency and capture completion before enabling delivery. It reuses stable PayPal request IDs and reads the order before attempting another capture. A lost checkout response enters review and can be reconciled with the same request reference within five hours. Longer or unresolved cases require operator review rather than creating another charge. A failed generation preserves the verified receipt and campaign proposal; uncertain generation outcomes stop for review.
+
+Returning from approved PayPal Sandbox checkout automatically checks the saved order on the server and brings that campaign into focus. Return URL parameters never establish payment. A cancelled checkout stays saved; if confirmation is delayed, use **Check payment** on the same campaign. Already verified payments are reused, and returning does not automatically start AI production.
 
 SQLite retains orders and the daily generation allowance across process restarts. A random HttpOnly cookie identifies this browser workspace. Clearing cookies or switching devices loses access to these browser-scoped records; there is no account recovery yet. Keep the same browser through sandbox checkout.
 

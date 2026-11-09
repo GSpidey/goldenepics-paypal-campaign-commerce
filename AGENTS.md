@@ -1,3 +1,9 @@
+## Current owner instruction — November 9, 2026
+
+The owner reopened this PayPal competition repository for focused improvements before the official submission cutoff, 2026-11-12T20:00:00Z (noon PST). Recheck Devpost status before any later competition mutation. After that cutoff, freeze source, README, deployed demo and video through the winner announcement; the current official date is December 21. This authorization does not reopen other competition repositories. Preserve the existing submitted 1:47 video and sandbox purchase-to-delivery flow.
+
+Never print image bytes, binary, base64, data URLs, secrets, signed URLs, repository dumps or long logs. Keep output bounded and checkpoint source in Git. Current owner policy supersedes the older backup instruction below: do not create unrequested Google Drive or OneDrive backups.
+
 # Campaign Commerce
 
 This is the complete scoped PayPal hackathon application. Keep the broader Studio private. Read README.md and docs/CURRENT_STATE.md before continuing.
